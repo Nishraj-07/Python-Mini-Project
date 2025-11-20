@@ -297,6 +297,45 @@ class GradingSystemApp:
         self.results_text.insert(tk.END, f"Percentage: {percentage:.2f}%\n")
         self.results_text.insert(tk.END, f"{'='*60}\n")
 
+        file_path = r'C:\Users\Nishant\OneDrive\ドキュメント\Book1.csv'
+        df = pd.read_csv(file_path)
+
+        # Inspect column names (optional)
+        print(df.head())
+        marks = df["Marks"]
+
+        range_counts = {
+            "0-9": 0,
+            "10-19": 0,
+            "20-29": 0,
+            "30-39": 0,
+            "40-50": 0
+        }
+
+        for m in marks:
+            if 0 <= m <= 9:
+                range_counts["0-9"] += 1
+            if 10 <= m <= 19:
+                range_counts["10-19"] += 1
+            if 20 <= m <= 29:
+                range_counts["20-29"] += 1
+            elif 30 <= m <= 39:
+                range_counts["30-39"] += 1
+            elif 40 <= m <= 50:
+                range_counts["40-50"] += 1
+
+        print(range_counts)
+        ranges = list(range_counts.keys())
+        counts = list(range_counts.values())
+
+        plt.bar(ranges, counts)
+
+        plt.xlabel("Marks Range")
+        plt.ylabel("Number of Students")
+        plt.title("Number of Students in Each Marks Range")
+
+        plt.show()
+
 if __name__ == "__main__":
     root = ttkb.Window(themename="cosmo")
     app = GradingSystemApp(root)
