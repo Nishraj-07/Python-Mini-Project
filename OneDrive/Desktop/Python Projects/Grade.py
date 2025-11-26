@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
+from turtle import pd
 from urllib import response
 from wsgiref import headers
 import ttkbootstrap as ttkb
@@ -7,9 +8,9 @@ from ttkbootstrap.constants import *
 import PyPDF2
 import requests
 import json
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
+import matplotlib.pyplot as plt
+
 
 class GradingSystemApp:
     def __init__(self, root):
@@ -234,6 +235,7 @@ class GradingSystemApp:
         
         total_marks_obtained = 0
         total_max_marks = 0
+        self.current_submission_scores = []
         
         for idx, qa in enumerate(self.questions, 1):
             question = qa["question"]
@@ -259,6 +261,20 @@ class GradingSystemApp:
             - Prioritize matching with the teacher's answer
             - Evaluate accuracy, completeness, and understanding
             - Ignore severe spelling and grammar errors
+            - Check whether same keywords are present in {teacher_answer} and {student_text}
+            - Be objective and fair
+            - Ignore any additional information not relevant to the question
+            - Focus on content quality but ignore minor formatting issues and spelling mistakes
+            - Deduct marks for missing key points from the teacher's answer but check if the same keywords are present in both answers
+            - Do not award marks for irrelevant or incorrect information but also do not deduct marks for minor  spelling mistakes and do not deduct marks for additional irrelevant information.
+            - Ignore if there are errors in punctuation, spelling, or grammar.
+            - Ignore if there is error in text extraction from PDF.
+            - Do leinient checking
+            -   ==IMPORTANT==: Check if the same keywords are present in both answers and award marks accordingly.
+            Based on the above criteria, grade the student's answer.
+
+
+
             
             Please provide:
             1. Marks awarded (out of {max_marks})
@@ -278,9 +294,17 @@ class GradingSystemApp:
                 try:
                     marks_line = [line for line in result.split('\n') if 'MARKS:' in line][0]
                     marks_awarded = float(marks_line.split('[')[1].split('/')[0])
+                    self.current_submission_scores.append({
+                        "question_number": idx,
+                        "marks_obtained": marks_awarded,
+                        "max_marks": max_marks
+                    })
                     total_marks_obtained += marks_awarded
-                except:
-                    marks_awarded = 0
+
+                except (IndexError, ValueError):
+                    marks_awarded = 0.0  # Default to 0 if parsing fails    
+
+                
                 
                 self.results_text.insert(tk.END, f"{'='*60}\n")
                 self.results_text.insert(tk.END, f"QUESTION {idx}:\n{question}\n\n")
@@ -289,13 +313,55 @@ class GradingSystemApp:
                 self.results_text.insert(tk.END, f"Failed to grade Question {idx}\n\n")
         
         # Overall summary
-        percentage = (total_marks_obtained / total_max_marks * 100) if total_max_marks > 0 else 0
-        
+        # Calculate percentage with proper parentheses
+        percentage = ((marks_awarded / total_max_marks) * 100) 
+
+        # Clear previous results (optional)
+        # self.results_text.delete(1.0, tk.END)
+
+        # Display results
         self.results_text.insert(tk.END, f"\n{'='*60}\n")
-        self.results_text.insert(tk.END, f"OVERALL RESULTS:\n")
-        self.results_text.insert(tk.END, f"Total Marks: {total_marks_obtained}/{total_max_marks}\n")
+        self.results_text.insert(tk.END, "OVERALL RESULTS:\n")
+        self.results_text.insert(tk.END, f"Total Marks: {marks_awarded}/{total_max_marks}\n")
         self.results_text.insert(tk.END, f"Percentage: {percentage:.2f}%\n")
         self.results_text.insert(tk.END, f"{'='*60}\n")
+
+        # Display bar chart of marks per question
+       
+
+        # Prepare data for plotting
+        question_labels = [f"Q{s['question_number']}" for s in self.current_submission_scores]
+        marks_awarded = [s['marks_awarded'] for s in self.current_submission_scores]
+        max_marks_list = [s['max_marks'] for s in self.current_submission_scores]
+        
+        # Create a DataFrame for easy handling
+        df_scores = pd.DataFrame({
+            'Question': question_labels,
+            'Marks Obtained': marks_awarded,
+            'Max Marks': max_marks_list
+        })
+        
+        plt.figure(figsize=(10, 6))
+        
+        # Bar chart for Marks Obtained
+        plt.bar(df_scores['Question'], df_scores['Marks Obtained'], color='skyblue', label='Marks Obtained')
+        
+        # Optional: Add a line/dots for Max Marks to show the maximum possible score
+        plt.plot(df_scores['Question'], df_scores['Max Marks'], marker='_', linestyle='', color='red', label='Max Marks', markersize=20)
+        
+        # Add labels and title
+        plt.xlabel("Question Number")
+        plt.ylabel("Marks")
+        plt.title("Student Marks Per Question")
+        plt.legend()
+        plt.grid(axis='y', linestyle='--')
+        
+        # Add text labels on top of the bars
+        for i, row in df_scores.iterrows():
+            plt.text(i, row['Marks Obtained'] + 0.1, f"{row['Marks Obtained']:.1f}/{row['Max Marks']:.1f}", ha='center')
+
+        plt.show()
+
 
         file_path = r'C:\Users\Nishant\OneDrive\ドキュメント\Book1.csv'
         df = pd.read_csv(file_path)
@@ -325,16 +391,19 @@ class GradingSystemApp:
                 range_counts["40-50"] += 1
 
         print(range_counts)
-        ranges = list(range_counts.keys())
-        counts = list(range_counts.values())
+        marks_range = list(range_counts.keys())
+        no_of_students = list(range_counts.values())
 
-        plt.bar(ranges, counts)
+        plt.bar(marks_range,no_of_students)
 
         plt.xlabel("Marks Range")
         plt.ylabel("Number of Students")
         plt.title("Number of Students in Each Marks Range")
 
         plt.show()
+
+
+        
 
 if __name__ == "__main__":
     root = ttkb.Window(themename="cosmo")
